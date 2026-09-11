@@ -31,6 +31,18 @@ export async function POST(req: Request) {
       targetRole = (session.user as any).role === 'admin' ? 'editor' : 'admin';
     }
 
+    const userEmail = (session.user.email || '').toLowerCase().trim();
+    const adminEmail = (process.env.ADMIN_EMAIL || '').toLowerCase().trim();
+    const isSystemAdmin = (session.user as any).role === 'admin' || (adminEmail && userEmail === adminEmail);
+
+    // নিরাপত্তা নীতি: সাধারণ ইউজার/এডিটর নিজে নিজে অ্যাডমিন হতে পারবে না
+    if (!isSystemAdmin && targetRole === 'admin') {
+      return NextResponse.json(
+        { error: 'ব্যবহারকারী নিজে নিজে অ্যাডমিন হতে পারবেন না। শুধুমাত্র অ্যাডমিন অন্যকে রোল প্রদান করতে পারেন।' },
+        { status: 403 }
+      );
+    }
+
     const db = await getDatabase();
     await db.collection('users').updateOne(
       { _id: new ObjectId(userId) },

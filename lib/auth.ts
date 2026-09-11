@@ -58,12 +58,17 @@ export const authOptions: NextAuthOptions = {
         }
 
         // সফল লগইন হলে ইউজারের তথ্য ও রোল রিটার্ন করা
+        const adminEmail = (process.env.ADMIN_EMAIL || '').toLowerCase().trim();
+        const userRole = (adminEmail && user.email.toLowerCase() === adminEmail)
+          ? 'admin'
+          : (user.role || 'editor');
+
         return {
           id: user._id.toString(),
           name: user.name,
           email: user.email,
           image: user.image || null,
-          role: (user.role || 'editor') as 'admin' | 'editor',
+          role: userRole as 'admin' | 'editor',
           status: (user.status || 'active') as 'active' | 'suspended',
         };
       },
@@ -81,10 +86,11 @@ export const authOptions: NextAuthOptions = {
             return false;
           }
 
+          const adminEmail = (process.env.ADMIN_EMAIL || '').toLowerCase().trim();
+
           if (!existingUser) {
-            // প্রথম ব্যবহারকারীকে স্বয়ংক্রিয়ভাবে admin করা হবে, পরের ব্যবহারকারীদের editor
-            const userCount = await db.collection('users').countDocuments();
-            const role = userCount === 0 ? 'admin' : 'editor';
+            // নতুন গুগল সাইন-ইন ইউজারের ডিফল্ট রোল হবে 'editor' (শুধুমাত্র ADMIN_EMAIL ম্যাচ করলে admin)
+            const role = (adminEmail && user.email.toLowerCase() === adminEmail) ? 'admin' : 'editor';
 
             // র মঙ্গোডিবি ইনসার্ট: নতুন গুগল ইউজার যুক্ত করা
             const result = await db.collection('users').insertOne({
@@ -100,7 +106,9 @@ export const authOptions: NextAuthOptions = {
             (user as any).status = 'active';
           } else {
             user.id = existingUser._id.toString();
-            (user as any).role = existingUser.role || 'editor';
+            // ডাটাবেজের রোল অথবা ADMIN_EMAIL প্রযোজ্য হলে admin
+            const isTargetAdmin = adminEmail && existingUser.email === adminEmail;
+            (user as any).role = isTargetAdmin ? 'admin' : (existingUser.role || 'editor');
             (user as any).status = existingUser.status || 'active';
           }
         } catch (err) {

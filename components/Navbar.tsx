@@ -12,38 +12,20 @@ import {
   User,
   Plus,
   Crown,
-  ShieldCheck,
-  ChevronDown,
-  Check,
-  RefreshCw,
   Sliders,
 } from 'lucide-react';
-import { useState, useRef, useEffect } from 'react';
+import { useState } from 'react';
 import { useRouter } from 'next/navigation';
 import { useLanguage } from '@/context/LanguageContext';
 
 export default function Navbar() {
-  const { data: session, status, update } = useSession();
+  const { data: session, status } = useSession();
   const { lang, setLang, t } = useLanguage();
   const router = useRouter();
   const [creating, setCreating] = useState(false);
-  const [roleMenuOpen, setRoleMenuOpen] = useState(false);
-  const [switchingRole, setSwitchingRole] = useState(false);
-  const roleDropdownRef = useRef<HTMLDivElement>(null);
 
   const userRole = ((session?.user as any)?.role || 'editor') as 'admin' | 'editor';
   const isAdmin = userRole === 'admin';
-
-  // বাইরে ক্লিক করলে রোল মেনু বন্ধ করা
-  useEffect(() => {
-    const handleClickOutside = (event: MouseEvent) => {
-      if (roleDropdownRef.current && !roleDropdownRef.current.contains(event.target as Node)) {
-        setRoleMenuOpen(false);
-      }
-    };
-    document.addEventListener('mousedown', handleClickOutside);
-    return () => document.removeEventListener('mousedown', handleClickOutside);
-  }, []);
 
   // দ্রুত নতুন ফর্ম তৈরি করে বিল্ডারে রিডাইরেক্ট
   const handleCreateFast = async () => {
@@ -68,28 +50,6 @@ export default function Navbar() {
       console.error(err);
     } finally {
       setCreating(false);
-    }
-  };
-
-  // রোল পরিবর্তন (অ্যাডমিন <-> এডিটর)
-  const handleSwitchRole = async (targetRole: 'admin' | 'editor') => {
-    if (targetRole === userRole || switchingRole) return;
-    setSwitchingRole(true);
-    try {
-      const res = await fetch('/api/user/role', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ role: targetRole }),
-      });
-      if (res.ok) {
-        await update({ role: targetRole });
-        setRoleMenuOpen(false);
-        router.refresh();
-      }
-    } catch (err) {
-      console.error('Role switch failed:', err);
-    } finally {
-      setSwitchingRole(false);
     }
   };
 
@@ -141,91 +101,28 @@ export default function Navbar() {
             <div className="w-8 h-8 rounded-full bg-gray-100 animate-pulse" />
           ) : session ? (
             <>
-              {/* ১. ইউজার রোল ব্যাজ ও ড্রপডাউন সুইচার */}
-              <div className="relative" ref={roleDropdownRef}>
-                <button
-                  onClick={() => setRoleMenuOpen((prev) => !prev)}
-                  className={`inline-flex items-center gap-1.5 px-2.5 py-1.5 rounded-lg text-xs font-bold border transition shadow-xs ${
-                    isAdmin
-                      ? 'bg-amber-50 text-amber-800 border-amber-300 hover:bg-amber-100'
-                      : 'bg-indigo-50 text-indigo-700 border-indigo-200 hover:bg-indigo-100'
-                  }`}
-                  title={t('roleSelectorTitle')}
-                >
-                  {isAdmin ? (
-                    <Crown className="w-3.5 h-3.5 text-amber-600 fill-amber-500/20" />
-                  ) : (
-                    <Sliders className="w-3.5 h-3.5 text-indigo-600" />
-                  )}
-                  <span>{isAdmin ? t('roleBadgeAdmin') : t('roleBadgeEditor')}</span>
-                  <ChevronDown className="w-3 h-3 opacity-60" />
-                </button>
-
-                {/* রোল ড্রপডাউন মেনু */}
-                {roleMenuOpen && (
-                  <div className="absolute right-0 mt-2 w-60 bg-white rounded-xl shadow-xl border border-gray-100 p-2 z-50 animate-in fade-in slide-in-from-top-2 duration-150">
-                    <div className="px-2 py-1.5 border-b border-gray-100 mb-1">
-                      <div className="text-[11px] font-bold uppercase tracking-wider text-gray-400">
-                        {t('roleSelectorTitle')}
-                      </div>
-                      <div className="text-xs text-gray-500 leading-tight mt-0.5">
-                        {t('roleSelectorDesc')}
-                      </div>
-                    </div>
-
-                    {/* অ্যাডমিন অপশন */}
-                    <button
-                      onClick={() => handleSwitchRole('admin')}
-                      disabled={switchingRole}
-                      className={`w-full flex items-center justify-between px-3 py-2 rounded-lg text-xs font-semibold transition ${
-                        isAdmin
-                          ? 'bg-amber-50 text-amber-900 font-bold'
-                          : 'text-gray-700 hover:bg-gray-50'
-                      }`}
-                    >
-                      <div className="flex items-center gap-2">
-                        <Crown className={`w-4 h-4 ${isAdmin ? 'text-amber-600' : 'text-gray-400'}`} />
-                        <span>{t('roleBadgeAdmin')}</span>
-                      </div>
-                      {isAdmin && <Check className="w-3.5 h-3.5 text-amber-600" />}
-                    </button>
-
-                    {/* এডিটর / ইউজার অপশন */}
-                    <button
-                      onClick={() => handleSwitchRole('editor')}
-                      disabled={switchingRole}
-                      className={`w-full flex items-center justify-between px-3 py-2 rounded-lg text-xs font-semibold transition ${
-                        !isAdmin
-                          ? 'bg-indigo-50 text-indigo-900 font-bold'
-                          : 'text-gray-700 hover:bg-gray-50'
-                      }`}
-                    >
-                      <div className="flex items-center gap-2">
-                        <Sliders className={`w-4 h-4 ${!isAdmin ? 'text-indigo-600' : 'text-gray-400'}`} />
-                        <span>{t('roleBadgeEditor')}</span>
-                      </div>
-                      {!isAdmin && <Check className="w-3.5 h-3.5 text-indigo-600" />}
-                    </button>
-
-                    {switchingRole && (
-                      <div className="flex items-center justify-center gap-1.5 py-1.5 text-[11px] text-gray-500 animate-pulse">
-                        <RefreshCw className="w-3 h-3 animate-spin" />
-                        <span>{t('switchingRole')}</span>
-                      </div>
-                    )}
-                  </div>
-                )}
-              </div>
-
-              {/* ২. অ্যাডমিন প্যানেল লিঙ্ক (শুধুমাত্র অ্যাডমিন রোল থাকলে দৃশ্যমান) */}
-              {isAdmin && (
+              {/* ১. ইউজার রোল প্রদর্শনী ও অ্যাডমিন লিঙ্ক */}
+              {isAdmin ? (
                 <Link
                   href="/admin"
-                  className="inline-flex items-center gap-1.5 px-3 py-1.5 bg-amber-50 hover:bg-amber-100 text-amber-900 border border-amber-200 text-xs font-bold rounded-lg shadow-xs transition"
+                  className="inline-flex items-center gap-1.5 px-3 py-1.5 bg-amber-50 hover:bg-amber-100 text-amber-900 border border-amber-300 text-xs font-bold rounded-lg shadow-xs transition"
+                  title={t('adminPanelLink')}
                 >
-                  <ShieldCheck className="w-3.5 h-3.5 text-amber-600" />
-                  <span className="hidden sm:inline">{t('adminPanelLink')}</span>
+                  <Crown className="w-3.5 h-3.5 text-amber-600 fill-amber-500/20" />
+                  <span>{t('roleBadgeAdmin')}</span>
+                  <span className="hidden sm:inline text-[10px] text-amber-700 font-semibold border-l border-amber-300 pl-1.5 ml-0.5">
+                    {t('adminPanelLink')}
+                  </span>
                 </Link>
+              ) : (
+                /* সাধারণ এডিটরদের জন্য স্ট্যাটিক রোল ব্যাজ (নিজে নিজে অ্যাডমিন সিলেক্ট করার সুযোগ নেই) */
+                <div
+                  className="inline-flex items-center gap-1.5 px-2.5 py-1.5 rounded-lg text-xs font-bold border bg-indigo-50 text-indigo-700 border-indigo-200 shadow-xs select-none"
+                  title={lang === 'bn' ? 'আপনার বর্তমান ভূমিকা: এডিটর' : 'Your current role: Editor'}
+                >
+                  <Sliders className="w-3.5 h-3.5 text-indigo-600" />
+                  <span>{t('roleBadgeEditor')}</span>
+                </div>
               )}
 
               {/* ৩. নতুন ফর্ম তৈরি বাটন */}
