@@ -43,6 +43,10 @@ export const authOptions: NextAuthOptions = {
           throw new Error('এই ইমেইলে কোনো ব্যবহারকারী পাওয়া যায়নি।');
         }
 
+        if (user.status === 'suspended') {
+          throw new Error('আপনার অ্যাকাউন্টটি স্থগিত (Suspended) করা হয়েছে। অ্যাডমিনের সাথে যোগাযোগ করুন।');
+        }
+
         if (!user.password) {
           throw new Error('এই অ্যাকাউন্টটি গুগল দিয়ে তৈরি করা হয়েছে। গুগল সাইন-ইন ব্যবহার করুন।');
         }
@@ -53,12 +57,14 @@ export const authOptions: NextAuthOptions = {
           throw new Error('ভুল পাসওয়ার্ড! আবার চেষ্টা করুন।');
         }
 
-        // সফল লগইন হলে ইউজারের তথ্য রিটার্ন করা
+        // সফল লগইন হলে ইউজারের তথ্য ও রোল রিটার্ন করা
         return {
           id: user._id.toString(),
           name: user.name,
           email: user.email,
           image: user.image || null,
+          role: (user.role || 'editor') as 'admin' | 'editor',
+          status: (user.status || 'active') as 'active' | 'suspended',
         };
       },
     }),
@@ -71,17 +77,31 @@ export const authOptions: NextAuthOptions = {
           const db = await getDatabase();
           const existingUser = await db.collection('users').findOne({ email: user.email.toLowerCase() });
 
+          if (existingUser && existingUser.status === 'suspended') {
+            return false;
+          }
+
           if (!existingUser) {
+            // প্রথম ব্যবহারকারীকে স্বয়ংক্রিয়ভাবে admin করা হবে, পরের ব্যবহারকারীদের editor
+            const userCount = await db.collection('users').countDocuments();
+            const role = userCount === 0 ? 'admin' : 'editor';
+
             // র মঙ্গোডিবি ইনসার্ট: নতুন গুগল ইউজার যুক্ত করা
             const result = await db.collection('users').insertOne({
               name: user.name || 'Google User',
               email: user.email.toLowerCase(),
               image: user.image,
+              role: role,
+              status: 'active',
               createdAt: new Date(),
             });
             user.id = result.insertedId.toString();
+            (user as any).role = role;
+            (user as any).status = 'active';
           } else {
             user.id = existingUser._id.toString();
+            (user as any).role = existingUser.role || 'editor';
+            (user as any).status = existingUser.status || 'active';
           }
         } catch (err) {
           console.error('গুগল সাইন-ইন হ্যান্ডলিং এরর:', err);
@@ -90,17 +110,26 @@ export const authOptions: NextAuthOptions = {
       }
       return true;
     },
-    // JWT টোকেনে ইউজার আইডি সেট করা
-    async jwt({ token, user }) {
+    // JWT টোকেনে ইউজার আইডি ও রোল সেট করা
+    async jwt({ token, user, trigger, session: updateSession }) {
       if (user) {
         token.id = user.id;
+        token.role = (user as any).role || 'editor';
+        token.status = (user as any).status || 'active';
+      }
+      // সেশন ডায়নামিক আপডেট হ্যান্ডলিং (রোল স্যুইচিং এর ক্ষেত্রে)
+      if (trigger === 'update' && updateSession) {
+        if (updateSession.role) token.role = updateSession.role;
+        if (updateSession.status) token.status = updateSession.status;
       }
       return token;
     },
-    // সেশনে ইউজার আইডি পাস করা যাতে রিকোয়েস্টে সরাসরি ইউজারের আইডি পাওয়া যায়
+    // সেশনে ইউজার আইডি ও রোল পাস করা
     async session({ session, token }) {
       if (session.user && token.id) {
         (session.user as any).id = token.id;
+        (session.user as any).role = token.role || 'editor';
+        (session.user as any).status = token.status || 'active';
       }
       return session;
     },

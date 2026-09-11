@@ -65,6 +65,10 @@ export interface IResponse {
   respondentIp?: string;    // সিকিউরিটি ও স্প্যাম রোধে আইপি অ্যাড্রেস
 }
 
+// ইউজার রোল ও অ্যাকাউন্ট স্ট্যাটাস টাইপ
+export type UserRole = 'admin' | 'editor';
+export type UserStatus = 'active' | 'suspended';
+
 // ব্যবহারকারী (User) অ্যাকাউন্টের মডেল
 export interface IUser {
   _id?: string;
@@ -72,5 +76,8 @@ export interface IUser {
   email: string;            // ইমেইল ঠিকানা
   password?: string;        // হ্যাশ করা নিরাপদ পাসওয়ার্ড
   image?: string;           // প্রোফাইল ছবি
+  role: UserRole;           // ইউজার রোল: admin বা editor
+  status: UserStatus;       // অ্যাকাউন্ট স্ট্যাটাস: active বা suspended
   createdAt: Date;
 }
+

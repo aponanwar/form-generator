@@ -23,12 +23,11 @@ export async function GET(req: Request, { params }: { params: { id: string } }) 
     }
 
     const userId = (session.user as any).id;
+    const isAdmin = (session.user as any).role === 'admin';
     const db = await getDatabase();
 
-    const form = await db.collection('forms').findOne({
-      _id: new ObjectId(id),
-      userId: userId,
-    });
+    const query = isAdmin ? { _id: new ObjectId(id) } : { _id: new ObjectId(id), userId };
+    const form = await db.collection('forms').findOne(query);
 
     if (!form) {
       return NextResponse.json({ error: 'ফর্মটি পাওয়া যায়নি অথবা দেখার অধিকার নেই' }, { status: 404 });
@@ -55,15 +54,14 @@ export async function PUT(req: Request, { params }: { params: { id: string } }) 
     }
 
     const userId = (session.user as any).id;
+    const isAdmin = (session.user as any).role === 'admin';
     const body = await req.json();
 
     const db = await getDatabase();
 
-    // নিরাপত্তা: ফর্মের মালিকানা যাচাই
-    const existingForm = await db.collection('forms').findOne({
-      _id: new ObjectId(id),
-      userId: userId,
-    });
+    // নিরাপত্তা: ফর্মের মালিকানা বা অ্যাডমিন পারমিশন যাচাই
+    const formQuery = isAdmin ? { _id: new ObjectId(id) } : { _id: new ObjectId(id), userId };
+    const existingForm = await db.collection('forms').findOne(formQuery);
 
     if (!existingForm) {
       return NextResponse.json({ error: 'ফর্মটি পরিবর্তনের অনুমতি নেই' }, { status: 403 });
@@ -77,7 +75,7 @@ export async function PUT(req: Request, { params }: { params: { id: string } }) 
 
     // র মঙ্গোডিবি আপডেট কুয়েরি
     await db.collection('forms').updateOne(
-      { _id: new ObjectId(id), userId: userId },
+      formQuery,
       {
         $set: {
           title: cleanTitle,
@@ -111,13 +109,12 @@ export async function DELETE(req: Request, { params }: { params: { id: string } 
     }
 
     const userId = (session.user as any).id;
+    const isAdmin = (session.user as any).role === 'admin';
     const db = await getDatabase();
 
-    // ফর্ম ডিলিট করা
-    const deleteResult = await db.collection('forms').deleteOne({
-      _id: new ObjectId(id),
-      userId: userId,
-    });
+    // ফর্ম ডিলিট করা (অ্যাডমিন যেকোনো ফর্ম ডিলিট করতে পারে)
+    const deleteQuery = isAdmin ? { _id: new ObjectId(id) } : { _id: new ObjectId(id), userId };
+    const deleteResult = await db.collection('forms').deleteOne(deleteQuery);
 
     if (deleteResult.deletedCount === 0) {
       return NextResponse.json({ error: 'ফর্ম ডিলিট করার অনুমতি নেই' }, { status: 403 });

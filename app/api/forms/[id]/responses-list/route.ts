@@ -21,13 +21,12 @@ export async function GET(req: Request, { params }: { params: { id: string } }) 
     }
 
     const userId = (session.user as any).id;
+    const isAdmin = (session.user as any).role === 'admin';
     const db = await getDatabase();
 
-    // নিরাপত্তা: ফর্মটি বর্তমান ইউজারের কি না নিশ্চিত করা
-    const form = await db.collection('forms').findOne({
-      _id: new ObjectId(id),
-      userId: userId,
-    });
+    // নিরাপত্তা: ফর্মটি বর্তমান ইউজারের কি না অথবা ইউজার অ্যাডমিন কি না নিশ্চিত করা
+    const formQuery = isAdmin ? { _id: new ObjectId(id) } : { _id: new ObjectId(id), userId };
+    const form = await db.collection('forms').findOne(formQuery);
 
     if (!form) {
       return NextResponse.json({ error: 'ফর্মটি পাওয়া যায়নি অথবা দেখার অধিকার নেই' }, { status: 403 });

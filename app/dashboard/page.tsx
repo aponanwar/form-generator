@@ -17,6 +17,8 @@ import {
   BarChart3,
   Check,
   FileText,
+  ShieldCheck,
+  Crown,
 } from 'lucide-react';
 
 export default function DashboardPage() {
@@ -150,6 +152,39 @@ export default function DashboardPage() {
             <span>{creating ? t('creatingForm') : t('createNewForm')}</span>
           </button>
         </div>
+
+        {/* অ্যাডমিন প্রিভিলেজ ব্যানার (যদি ব্যবহারকারী অ্যাডমিন হন) */}
+        {((session?.user as any)?.role === 'admin') && (
+          <div className="bg-gradient-to-r from-amber-500/10 via-amber-500/5 to-transparent border border-amber-200/80 rounded-2xl p-4 flex flex-col sm:flex-row sm:items-center justify-between gap-3">
+            <div className="flex items-center gap-3">
+              <div className="w-10 h-10 rounded-xl bg-amber-500 text-white flex items-center justify-center shadow-sm shrink-0">
+                <ShieldCheck className="w-5 h-5" />
+              </div>
+              <div>
+                <div className="flex items-center gap-2">
+                  <span className="text-xs font-bold text-amber-900">
+                    {lang === 'bn' ? 'অ্যাডমিন প্রিভিলেজ সক্রিয়' : 'Admin Privileges Active'}
+                  </span>
+                  <span className="text-[10px] bg-amber-200/70 text-amber-800 font-extrabold px-2 py-0.5 rounded-full">
+                    ADMIN
+                  </span>
+                </div>
+                <p className="text-xs text-amber-700/80 mt-0.5">
+                  {lang === 'bn'
+                    ? 'সিস্টেমের সমস্ত ব্যবহারকারী ও ফর্ম নিয়ন্ত্রণ করতে অ্যাডমিন কন্ট্রোল সেন্টারে যান।'
+                    : 'Access the full control center to manage all users, permissions, and forms.'}
+                </p>
+              </div>
+            </div>
+            <Link
+              href="/admin"
+              className="inline-flex items-center gap-1.5 px-4 py-2 bg-amber-600 hover:bg-amber-700 text-white text-xs font-bold rounded-xl shadow-xs transition shrink-0 self-start sm:self-auto"
+            >
+              <Crown className="w-3.5 h-3.5" />
+              <span>{t('adminPanelLink')}</span>
+            </Link>
+          </div>
+        )}
 
         {/* পরিসংখ্যান কার্ড */}
         <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">

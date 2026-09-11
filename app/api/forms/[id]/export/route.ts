@@ -23,13 +23,12 @@ export async function GET(req: Request, { params }: { params: { id: string } }) 
     }
 
     const userId = (session.user as any).id;
+    const isAdmin = (session.user as any).role === 'admin';
     const db = await getDatabase();
 
-    // ২. মালিকানা যাচাইকরণ: বর্তমান ইউজার ছাড়া অন্য কেউ এক্সেল ডেটা নামাতে পারবে না
-    const form = await db.collection('forms').findOne({
-      _id: new ObjectId(id),
-      userId: userId,
-    });
+    // ২. মালিকানা বা অ্যাডমিন পারমিশন যাচাইকরণ
+    const formQuery = isAdmin ? { _id: new ObjectId(id) } : { _id: new ObjectId(id), userId };
+    const form = await db.collection('forms').findOne(formQuery);
 
     if (!form) {
       return NextResponse.json({ error: 'ফর্মটি পাওয়া যায়নি অথবা ডাউনলোড করার অনুমতি নেই।' }, { status: 403 });

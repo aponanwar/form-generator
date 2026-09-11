@@ -56,11 +56,17 @@ export async function POST(req: Request) {
     // পাসওয়ার্ড নিরাপদ ১২ সল্ট রাউন্ডে হ্যাশিং
     const hashedPassword = await bcrypt.hash(password, 12);
 
+    // প্রথম ব্যবহারকারীকে স্বয়ংক্রিয়ভাবে admin রোল প্রদান, বাকিদের editor
+    const userCount = await db.collection('users').countDocuments();
+    const role = userCount === 0 ? 'admin' : 'editor';
+
     // র মঙ্গোডিবিতে নতুন ইউজার ডেটা ইনসার্ট করা
     const result = await db.collection('users').insertOne({
       name: sanitizedName,
       email: sanitizedEmail,
       password: hashedPassword,
+      role: role,
+      status: 'active',
       createdAt: new Date(),
     });
 
